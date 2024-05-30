@@ -1,3 +1,7 @@
+// use this for strict string size
+typedef struct {
+  char str[256];
+}nmeaBuffer_t;
 
 typedef struct {
   // $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxx,x.x,a*hh
@@ -13,7 +17,7 @@ typedef struct {
   float mg_var;            // 10) Magnetic Variation, degrees
   char mg_dir;             // 11) E or W
   unsigned short checksum; // 12) Checksum
-} gpsGPRMC_t;
+} xxRMC_t;
 
 typedef struct {
 
@@ -42,7 +46,7 @@ typedef struct {
   unsigned short rs_id;    // 14) Differential reference station ID, 0000-1023
   unsigned short checksum; // 15) Checksum
 
-} gpsGPGGA_t;
+} xxGGA_t;
 
 typedef struct {
   // $--VTG,x.x,T,x.x,M,x.x,N,x.x,K*hh
@@ -55,7 +59,7 @@ typedef struct {
   float speed_kmh;         // 7) Speed Kilometers Per Hour
   char kmh;                // 8) K = Kilometres Per Hour
   unsigned short checksum; // 9) Checksum
-} gpsGPVTG_t;
+} xxVTG_t;
 
 typedef struct {
 
@@ -64,37 +68,70 @@ typedef struct {
   char mode;     // 2) Mode
   // 3) ID of 1st satellite used for fix
   // 4) ID of 2nd satellite used for fix
-  short sat_id[12]; // ...
+  unsigned short sat_id[12]; // ...
   // 14) ID of 12th satellite used for fix
   float pdop;              // 15) PDOP in meters
   float hdop;              // 16) HDOP in meters
   float vdop;              // 17) VDOP in meters
   unsigned short checksum; // 18) Checksum
 
-} gpsGPGSA_t;
+} xxGSA_t;
 
 typedef struct {
-  short sat_num;    // 4) satellite number
-  short eleveation; // 5) elevation in degrees
-  short azimuth;    // 6) azimuth in degrees to true
-  short snr;        // 7) SNR in dB
+  unsigned short sat_num;    // 4) satellite number
+  unsigned short elevation; // 5) elevation in degrees
+  unsigned short azimuth;    // 6) azimuth in degrees to true
+  unsigned short snr;        // 7) SNR in dB
   // more satellite infos like 4)-7)
-} gpsGPGSV_sat_t;
+} xxGSV_sat_t;
 
 typedef struct {
   // $--GSV,x,x,x,x,x,x,x,...*hh
-  short mes_count;          // 1) total number of messages
-  short mes_num;            // none // 2) message number
-  short sat_count;          // 3) satellites in view
-  short checksum;           // 8) Checksum
-  gpsGPGSV_sat_t *sat_info; // 4) satellite infos
+  unsigned short mes_count;          // 1) total number of messages
+  unsigned short mes_num;            // none // 2) message number
+  unsigned short sat_count;          // 3) satellites in view
+  xxGSV_sat_t *sat_info; // 4) satellite infos
+  unsigned short *checksum;           // 8) Checksum
   // to be held as heap
-} gpsGPGSV_t;
+} xxGSV_t;
 
 typedef struct {
-  gpsGPRMC_t gprmc;
-  gpsGPGGA_t gpgga;
-  gpsGPVTG_t gpvtg;
-  gpsGPGSA_t gpgsa;
-  gpsGPGSV_t gpgsv;
-} gpsData_t;
+  // GLL
+  // Geographic Position – Latitude/Longitude
+  // $--GLL,llll.ll,a,yyyyy.yy,a,hhmmss.ss,A*hh
+  float lat;      // 1) Latitude
+  char lat_dir;   // 2) N or S (North or South)
+  float lon;      // 3) Longitude
+  char lon_dir;   // 4) E or W (East or West)
+  float utc_time; // 5) Time (UTC)
+  char status;    // 6) Status A - Data Valid, V - Data Invalid
+  short checksum; // 7) Checksum
+} xxGLL_t;
+
+typedef struct {
+  char talker[3]; // Navigation system e.g. GPS - GP, GLONASS - GL, etc.
+  xxRMC_t rmc;
+  xxGGA_t gga;
+  xxVTG_t vtg;
+  xxGSA_t gsa;
+  xxGSV_t gsv;
+  xxGLL_t gll;
+} navData_t;
+
+void nmea_set_talker(navData_t *navData, const char *talker);
+int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData);
+void nmea_free(navData_t *navData);
+void populate_rmc(const char *nmea, xxRMC_t *rmc);
+void clear_rmc(xxRMC_t *rmc);
+void populate_gga(const char *nmea, xxGGA_t *gga);
+void clear_gga(xxGGA_t *gga);
+void populate_vtg(const char *nmea, xxVTG_t *vtg);
+void clear_vtg(xxVTG_t *vtg);
+void populate_gsa(const char *nmea, xxGSA_t *gsa);
+void clear_gsa(xxGSA_t *gsa);
+void populate_gsv(const char *nmea, xxGSV_t *gsv);
+void clear_gsv(xxGSV_t *gsv);
+void free_gsv_sat(xxGSV_t *gsv);
+void populate_gll(const char *nmea, xxGLL_t *gll);
+void clear_gll(xxGLL_t *gll);
+void preprocess_nmea(char *nmea);
