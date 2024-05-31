@@ -1,7 +1,9 @@
 // use this for strict string size
+//
+#define NMEA_BUFFER_SIZE 256
 typedef struct {
-  char str[256];
-}nmeaBuffer_t;
+  char str[NMEA_BUFFER_SIZE];
+} nmeaBuffer_t;
 
 typedef struct {
   // $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxx,x.x,a*hh
@@ -13,7 +15,7 @@ typedef struct {
   char lon_dir;            // 6) E or W
   float speed;             // 7) Speed over ground, knots
   float course;            // 8) Track made good, degrees true
-  unsigned short date;     // 9) Date, ddmmyy
+  unsigned int date;     // 9) Date, ddmmyy
   float mg_var;            // 10) Magnetic Variation, degrees
   char mg_dir;             // 11) E or W
   unsigned short checksum; // 12) Checksum
@@ -78,20 +80,22 @@ typedef struct {
 } xxGSA_t;
 
 typedef struct {
-  unsigned short sat_num;    // 4) satellite number
+  unsigned short sat_num;   // 4) satellite number
   unsigned short elevation; // 5) elevation in degrees
-  unsigned short azimuth;    // 6) azimuth in degrees to true
-  unsigned short snr;        // 7) SNR in dB
+  unsigned short azimuth;   // 6) azimuth in degrees to true
+  unsigned short snr;       // 7) SNR in dB
   // more satellite infos like 4)-7)
 } xxGSV_sat_t;
 
 typedef struct {
   // $--GSV,x,x,x,x,x,x,x,...*hh
-  unsigned short mes_count;          // 1) total number of messages
-  unsigned short mes_num;            // none // 2) message number
-  unsigned short sat_count;          // 3) satellites in view
-  xxGSV_sat_t *sat_info; // 4) satellite infos
-  unsigned short *checksum;           // 8) Checksum
+  unsigned short mes_count; // 1) total number of messages
+  unsigned short mes_num;   // none // 2) message number
+  unsigned short sat_count; // 3) satellites in view
+  xxGSV_sat_t *sat_info;    // 4) satellite infos
+  unsigned short *checksum; // 8) Checksum
+  //
+  unsigned short sat_iteriation; // determine how many satellites are parsed
   // to be held as heap
 } xxGSV_t;
 
@@ -118,8 +122,11 @@ typedef struct {
   xxGLL_t gll;
 } navData_t;
 
-void nmea_set_talker(navData_t *navData, const char *talker);
+// do it right after creating the navData_t eg. nmea_set_talker(&navData, "GP");
+void nmea_init(navData_t *navData, const char *talker);
+// parsing functions
 int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData);
+// clear the navData_t
 void nmea_free(navData_t *navData);
 void populate_rmc(const char *nmea, xxRMC_t *rmc);
 void clear_rmc(xxRMC_t *rmc);
@@ -129,9 +136,12 @@ void populate_vtg(const char *nmea, xxVTG_t *vtg);
 void clear_vtg(xxVTG_t *vtg);
 void populate_gsa(const char *nmea, xxGSA_t *gsa);
 void clear_gsa(xxGSA_t *gsa);
-void populate_gsv(const char *nmea, xxGSV_t *gsv);
+void populate_gsv(char *nmea, xxGSV_t *gsv);
 void clear_gsv(xxGSV_t *gsv);
 void free_gsv_sat(xxGSV_t *gsv);
 void populate_gll(const char *nmea, xxGLL_t *gll);
 void clear_gll(xxGLL_t *gll);
-void preprocess_nmea(char *nmea);
+void preprocess_nmea(nmeaBuffer_t *nmea);
+void print_rmc(const xxRMC_t *rmc);
+void print_gga(const xxGGA_t *gga);
+void print_gsv(const xxGSV_t *gsv);

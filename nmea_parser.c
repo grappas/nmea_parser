@@ -4,27 +4,44 @@
 #include <stdlib.h>
 #include <string.h>
 
-void preprocess_nmea(char *nmea) {
-  char buffer[256];
-  char *src = nmea;
+void preprocess_nmea(nmeaBuffer_t *nmea) {
+  char buffer[NMEA_BUFFER_SIZE];
+  char *src = nmea->str;
   char *dst = buffer;
   char *end = buffer + sizeof(buffer) - 1;
+  int leading_zero = 1;
 
   while (*src && dst < end) {
     if (*src == ',' && (*(src + 1) == ',' || *(src + 1) == '*')) {
       *dst++ = ',';
       *dst++ = '0';
+      leading_zero = 1;
+    } else if (*src == ',') {
+      *dst++ = *src;
+      leading_zero = 1;
+    } else if (*src == '0' && leading_zero) {
+      // Skip leading zero
+      if (*(src + 1) >= '0' && *(src + 1) <= '9') {
+        src++;
+        continue;
+      } else {
+        *dst++ = '0';
+        leading_zero = 0;
+      }
     } else {
       *dst++ = *src;
+      leading_zero = 0;
     }
     src++;
   }
   *dst = '\0';
-  strcpy(nmea, buffer);
+  strcpy(nmea->str, buffer);
 }
 
-void nmea_set_talker(navData_t *navData, const char *talker) {
+void nmea_init(navData_t *navData, const char *talker) {
   strncpy(navData->talker, talker, sizeof(navData->talker));
+  navData->gsv.sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
+  navData->gsv.checksum = (unsigned short *)malloc(sizeof(unsigned short));
 }
 
 void clear_rmc(xxRMC_t *rmc) { memset(rmc, 0, sizeof(xxRMC_t)); }
@@ -47,9 +64,10 @@ void clear_gsv(xxGSV_t *gsv) {
 
 void populate_rmc(const char *nmea, xxRMC_t *rmc) {
   clear_rmc(rmc);
+  printf("nmea: %s\n", nmea);
   const char *data = nmea + 7;
 
-  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%f,%hu,%f,%c*%hx", &rmc->time,
+  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%f,%u,%f,%c*%hx", &rmc->time,
          &rmc->status, &rmc->lat, &rmc->lat_dir, &rmc->lon, &rmc->lon_dir,
          &rmc->speed, &rmc->course, &rmc->date, &rmc->mg_var, &rmc->mg_dir,
          &rmc->checksum);
@@ -85,21 +103,50 @@ void populate_gsa(const char *nmea, xxGSA_t *gsa) {
          &gsa->checksum);
 }
 
-void populate_gsv(const char *nmea, xxGSV_t *gsv) {
-  const char *data = nmea + 7;
-  sscanf(data, "%hd,%hd,%hd,", &gsv->mes_count, &gsv->mes_num, &gsv->sat_count);
+void populate_gsv(char *nmea, xxGSV_t *gsv) {
+
+  int characters_read = 0;
+  char *data = nmea + 7;
+  char *asterisk_position = strchr(data, '*');
+
+  sscanf(data, "%hd,%hd,%hd,%n", &gsv->mes_count, &gsv->mes_num,
+         &gsv->sat_count, &characters_read);
+
   if (gsv->mes_num == 1) {
     clear_gsv(gsv);
-  }
-  gsv->sat_info = (xxGSV_sat_t *)malloc(gsv->sat_count * sizeof(xxGSV_sat_t));
-  gsv->checksum =
-      (unsigned short *)malloc(gsv->mes_count * sizeof(unsigned short));
-  if (gsv->sat_info) {
-    for (int i = 0; i < gsv->sat_count; i++) {
-      xxGSV_sat_t *sat = &gsv->sat_info[i];
-      sscanf(data, "%hd,%hd,%hd,%hd", &sat->sat_num, &sat->elevation,
-             &sat->azimuth, &sat->snr);
+    sscanf(data, "%hd,%hd,%hd,%n", &gsv->mes_count, &gsv->mes_num,
+           &gsv->sat_count, &characters_read);
+    gsv->sat_info = (xxGSV_sat_t *)malloc(gsv->sat_count * sizeof(xxGSV_sat_t));
+    gsv->checksum =
+        (unsigned short *)malloc(gsv->mes_count * sizeof(unsigned short));
+    if (!gsv->sat_info || !gsv->checksum) {
+      fprintf(stderr, "Memory allocation failed\n");
+      exit(EXIT_FAILURE);
     }
+  }
+  data += characters_read;
+
+  if (asterisk_position != NULL) {
+    // Save the value after the asterisk as a string
+    char value_str[3];
+    strncpy(value_str, asterisk_position + 1, 2);
+    value_str[2] = '\0';
+
+    // Convert the string value to unsigned short
+    gsv->checksum[gsv->mes_num - 1] =
+        (unsigned short)strtoul(value_str, NULL, 16);
+
+    // Replace the asterisk and its value with a comma
+    *asterisk_position = ',';
+    *(asterisk_position + 1) = '\0';
+  }
+
+  while ((data[0] != '\0') && (gsv->sat_iteriation < gsv->sat_count)) {
+    xxGSV_sat_t *sat = &gsv->sat_info[gsv->sat_iteriation];
+    sscanf(data, "%hd,%hd,%hd,%hd,%n", &sat->sat_num, &sat->elevation,
+           &sat->azimuth, &sat->snr, &characters_read);
+    gsv->sat_iteriation++;
+    data += characters_read;
   }
 }
 
@@ -110,10 +157,98 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
          &gll->lon_dir, &gll->utc_time, &gll->status, &gll->checksum);
 }
 
+void nmea_free(navData_t *navData) {
+  clear_gsv(&navData->gsv);
+  clear_rmc(&navData->rmc);
+  clear_gga(&navData->gga);
+  clear_vtg(&navData->vtg);
+  clear_gsa(&navData->gsa);
+  clear_gll(&navData->gll);
+}
+
+int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
+  if (strlen(nmea->str) == 0) {
+    return 1;
+  }
+  if (strncmp(nmea->str + 1, navData->talker, 2)) {
+    return 1;
+  }
+  preprocess_nmea(nmea);
+  char *nmea_str = nmea->str;
+  if (strncmp(nmea_str + 3, "RMC", 3) == 0) {
+    populate_rmc(nmea_str, &navData->rmc);
+  } else if (strncmp(nmea_str + 3, "GGA", 3) == 0) {
+    populate_gga(nmea_str, &navData->gga);
+  } else if (strncmp(nmea_str + 3, "VTG", 3) == 0) {
+    populate_vtg(nmea_str, &navData->vtg);
+  } else if (strncmp(nmea_str + 3, "GSA", 3) == 0) {
+    populate_gsa(nmea_str, &navData->gsa);
+  } else if (strncmp(nmea_str + 3, "GSV", 3) == 0) {
+    populate_gsv(nmea_str, &navData->gsv);
+  } else if (strncmp(nmea_str + 3, "GLL", 3) == 0) {
+    populate_gll(nmea_str, &navData->gll);
+  } else {
+    return 1;
+  }
+  return 0;
+}
+
+void print_rmc(const xxRMC_t *rmc) {
+  printf("Time: %f\n", rmc->time);
+  printf("Status: %c\n", rmc->status);
+  printf("Latitude: %f\n", rmc->lat);
+  printf("Latitude Direction: %c\n", rmc->lat_dir);
+  printf("Longitude: %f\n", rmc->lon);
+  printf("Longitude Direction: %c\n", rmc->lon_dir);
+  printf("Speed: %f\n", rmc->speed);
+  printf("Course: %f\n", rmc->course);
+  printf("Date: %u\n", rmc->date);
+  printf("Magnetic Variation: %f\n", rmc->mg_var);
+  printf("Magnetic Direction: %c\n", rmc->mg_dir);
+  printf("Checksum: %hx\n", rmc->checksum);
+}
+
+void print_gga(const xxGGA_t *gga) {
+  printf("Time: %f\n", gga->time);
+  printf("Latitude: %f\n", gga->lat);
+  printf("Latitude Direction: %c\n", gga->lat_dir);
+  printf("Longitude: %f\n", gga->lon);
+  printf("Longitude Direction: %c\n", gga->lon_dir);
+  printf("Quality: %hu\n", gga->quality);
+  printf("Satellite Count: %hu\n", gga->sat_count);
+  printf("HDOP: %f\n", gga->hdop);
+  printf("Altitude: %f\n", gga->alt);
+  printf("Unit Altitude: %c\n", gga->unit_alt);
+  printf("Geoidal Separation: %f\n", gga->geoid_sep);
+  printf("Unit Geoidal Separation: %c\n", gga->unit_geoid_sep);
+  printf("Age: %f\n", gga->age);
+  printf("Reference Station ID: %hu\n", gga->rs_id);
+  printf("Checksum: %hx\n", gga->checksum);
+}
+
+void print_gsv(const xxGSV_t *gsv) {
+  if (gsv->mes_count == gsv->mes_num) {
+    printf("Message Count: %hu\n", gsv->mes_count);
+    printf("Message Number: %hu\n", gsv->mes_num);
+    printf("Satellite Count: %hu\n", gsv->sat_count);
+    for (size_t i = 0; i < gsv->sat_count; i++) {
+      xxGSV_sat_t *sat = &gsv->sat_info[i];
+      printf("Satellite Number: %hu\n", sat->sat_num);
+      printf("Elevation: %hu\n", sat->elevation);
+      printf("Azimuth: %hu\n", sat->azimuth);
+      printf("SNR: %hu\n", sat->snr);
+    }
+    for (size_t i = 0; i < gsv->mes_count; i++) {
+      printf("Checksum: %hx\n", gsv->checksum[i]);
+    }
+  }
+}
 // // use this for strict string size
+// //
+// #define NMEA_BUFFER_SIZE 256
 // typedef struct {
-//   char str[256];
-// }nmeaBuffer_t;
+//   char str[NMEA_BUFFER_SIZE];
+// } nmeaBuffer_t;
 //
 // typedef struct {
 //   // $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,xxxx,x.x,a*hh
@@ -192,20 +327,22 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
 // } xxGSA_t;
 //
 // typedef struct {
-//   unsigned short sat_num;    // 4) satellite number
+//   unsigned short sat_num;   // 4) satellite number
 //   unsigned short elevation; // 5) elevation in degrees
-//   unsigned short azimuth;    // 6) azimuth in degrees to true
-//   unsigned short snr;        // 7) SNR in dB
+//   unsigned short azimuth;   // 6) azimuth in degrees to true
+//   unsigned short snr;       // 7) SNR in dB
 //   // more satellite infos like 4)-7)
 // } xxGSV_sat_t;
 //
 // typedef struct {
 //   // $--GSV,x,x,x,x,x,x,x,...*hh
-//   unsigned short mes_count;          // 1) total number of messages
-//   unsigned short mes_num;            // none // 2) message number
-//   unsigned short sat_count;          // 3) satellites in view
-//   xxGSV_sat_t *sat_info; // 4) satellite infos
-//   unsigned short *checksum;           // 8) Checksum
+//   unsigned short mes_count; // 1) total number of messages
+//   unsigned short mes_num;   // none // 2) message number
+//   unsigned short sat_count; // 3) satellites in view
+//   xxGSV_sat_t *sat_info;    // 4) satellite infos
+//   unsigned short *checksum; // 8) Checksum
+//   //
+//   unsigned short sat_iteriation; // determine how many satellites are parsed
 //   // to be held as heap
 // } xxGSV_t;
 //
@@ -232,8 +369,11 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
 //   xxGLL_t gll;
 // } navData_t;
 //
-// void nmea_set_talker(navData_t *navData, const char *talker);
+// // do it right after creating the navData_t eg. nmea_set_talker(&navData,
+// "GP"); void nmea_set_talker(navData_t *navData, const char *talker);
+// // parsing functions
 // int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData);
+// // clear the navData_t
 // void nmea_free(navData_t *navData);
 // void populate_rmc(const char *nmea, xxRMC_t *rmc);
 // void clear_rmc(xxRMC_t *rmc);
@@ -248,4 +388,7 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
 // void free_gsv_sat(xxGSV_t *gsv);
 // void populate_gll(const char *nmea, xxGLL_t *gll);
 // void clear_gll(xxGLL_t *gll);
-// void preprocess_nmea(char *nmea);
+// void preprocess_nmea(nmeaBuffer_t *nmea);
+// void print_rmc(const xxRMC_t *rmc);
+// void print_gga(const xxGGA_t *gga);
+// void print_gsv(const xxGSV_t *gsv);
