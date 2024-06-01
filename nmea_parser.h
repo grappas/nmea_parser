@@ -1,6 +1,38 @@
 // use this for strict string size
 //
+#ifndef NMEA_PARSER_H
+#define NMEA_PARSER_H
+
 #define NMEA_BUFFER_SIZE 256
+
+#ifndef NMEA_RMC
+#define NMEA_RMC 1
+#endif
+
+#ifndef NMEA_GGA
+#define NMEA_GGA 1
+#endif
+
+#ifndef NMEA_VTG
+#define NMEA_VTG 1
+#endif
+
+#ifndef NMEA_GSA
+#define NMEA_GSA 1
+#endif
+
+#ifndef NMEA_GSV
+#define NMEA_GSV 1
+#endif
+
+#ifndef NMEA_GLL
+#define NMEA_GLL 1
+#endif
+
+#define NMEA_OBJECT_SUM                                                        \
+  (NMEA_RMC + NMEA_GGA + NMEA_VTG + NMEA_GSA + NMEA_GSV + NMEA_GLL)
+
+#endif // NMEA_PARSER_H
 typedef struct {
   char str[NMEA_BUFFER_SIZE];
 } nmeaBuffer_t;
@@ -15,7 +47,7 @@ typedef struct {
   char lon_dir;            // 6) E or W
   float speed;             // 7) Speed over ground, knots
   float course;            // 8) Track made good, degrees true
-  unsigned int date;     // 9) Date, ddmmyy
+  unsigned int date;       // 9) Date, ddmmyy
   float mg_var;            // 10) Magnetic Variation, degrees
   char mg_dir;             // 11) E or W
   unsigned short checksum; // 12) Checksum
@@ -113,15 +145,27 @@ typedef struct {
 } xxGLL_t;
 
 typedef struct {
-  char talker[3]; // Navigation system e.g. GPS - GP, GLONASS - GL, etc.
+  char talker[3];     // Navigation system e.g. GPS - GP, GLONASS - GL, etc.
   char begin_from[4]; // Start parsing from this NMEA sentence
   unsigned int cycle; // cycle count
+#if NMEA_RMC
   xxRMC_t rmc;
+#endif
+#if NMEA_GGA
   xxGGA_t gga;
+#endif
+#if NMEA_VTG
   xxVTG_t vtg;
+#endif
+#if NMEA_GSA
   xxGSA_t gsa;
+#endif
+#if NMEA_GSV
   xxGSV_t gsv;
+#endif
+#if NMEA_GLL
   xxGLL_t gll;
+#endif
 } navData_t;
 
 // do it right after creating the navData_t eg. nmea_set_talker(&navData, "GP");
@@ -144,6 +188,11 @@ void free_gsv_sat(xxGSV_t *gsv);
 void populate_gll(const char *nmea, xxGLL_t *gll);
 void clear_gll(xxGLL_t *gll);
 void preprocess_nmea(nmeaBuffer_t *nmea);
+#ifdef NMEA_PRINT
 void print_rmc(const xxRMC_t *rmc);
 void print_gga(const xxGGA_t *gga);
 void print_gsv(const xxGSV_t *gsv);
+void print_gsa(const xxGSA_t *gsa);
+void print_vtg(const xxVTG_t *vtg);
+void print_gll(const xxGLL_t *gll);
+#endif

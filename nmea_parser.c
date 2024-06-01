@@ -41,8 +41,11 @@ void preprocess_nmea(nmeaBuffer_t *nmea) {
 void nmea_init(navData_t *navData, const char *talker, const char *begin_from) {
   strncpy(navData->talker, talker, sizeof(navData->talker));
   strncpy(navData->begin_from, begin_from, sizeof(navData->begin_from));
+  navData->cycle = 0;
+#if NMEA_GSV
   navData->gsv.sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
   navData->gsv.checksum = (unsigned short *)malloc(sizeof(unsigned short));
+#endif
 }
 
 void clear_rmc(xxRMC_t *rmc) { memset(rmc, 0, sizeof(xxRMC_t)); }
@@ -65,7 +68,6 @@ void clear_gsv(xxGSV_t *gsv) {
 
 void populate_rmc(const char *nmea, xxRMC_t *rmc) {
   clear_rmc(rmc);
-  printf("nmea: %s\n", nmea);
   const char *data = nmea + 7;
 
   sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%f,%u,%f,%c*%hx", &rmc->time, &rmc->status,
@@ -163,12 +165,24 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
 }
 
 void nmea_free(navData_t *navData) {
+#if NMEA_GSV
   clear_gsv(&navData->gsv);
+#endif
+#if NMEA_RMC
   clear_rmc(&navData->rmc);
+#endif
+#if NMEA_GGA
   clear_gga(&navData->gga);
+#endif
+#if NMEA_VTG
   clear_vtg(&navData->vtg);
+#endif
+#if NMEA_GSA
   clear_gsa(&navData->gsa);
+#endif
+#if NMEA_GLL
   clear_gll(&navData->gll);
+#endif
 }
 
 int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
@@ -178,34 +192,47 @@ int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
   if (strncmp(nmea->str + 1, navData->talker, 2)) {
     return 1;
   }
-  if (strncmp(nmea->str + 3, navData->begin_from, 3) == 0) {
+  if ( (strncmp(nmea->str + 3, navData->begin_from, 3) == 0) || (navData->cycle == NMEA_OBJECT_SUM) ){
     navData->cycle = 0;
   }
   preprocess_nmea(nmea);
   char *nmea_str = nmea->str;
   if (strncmp(nmea_str + 3, "RMC", 3) == 0) {
+#if NMEA_RMC
     populate_rmc(nmea_str, &navData->rmc);
     navData->cycle++;
+#endif
   } else if (strncmp(nmea_str + 3, "GGA", 3) == 0) {
+#if NMEA_GGA
     populate_gga(nmea_str, &navData->gga);
     navData->cycle++;
+#endif
   } else if (strncmp(nmea_str + 3, "VTG", 3) == 0) {
+#if NMEA_VTG
     populate_vtg(nmea_str, &navData->vtg);
     navData->cycle++;
+#endif
   } else if (strncmp(nmea_str + 3, "GSA", 3) == 0) {
+#if NMEA_GSA
     populate_gsa(nmea_str, &navData->gsa);
     navData->cycle++;
+#endif
   } else if (strncmp(nmea_str + 3, "GSV", 3) == 0) {
+#if NMEA_GSV
     navData->cycle += populate_gsv(nmea_str, &navData->gsv);
+#endif
   } else if (strncmp(nmea_str + 3, "GLL", 3) == 0) {
+#if NMEA_GLL
     populate_gll(nmea_str, &navData->gll);
     navData->cycle++;
+#endif
   } else {
     return 1;
   }
   return 0;
 }
 
+#ifdef NMEA_PRINT
 void print_rmc(const xxRMC_t *rmc) {
   printf("Time: %f\n", rmc->time);
   printf("Status: %c\n", rmc->status);
@@ -256,3 +283,38 @@ void print_gsv(const xxGSV_t *gsv) {
     }
   }
 }
+
+void print_vtg(const xxVTG_t *vtg) {
+  printf("Degrees: %f\n", vtg->degrees);
+  printf("State: %c\n", vtg->state);
+  printf("Degrees 2: %f\n", vtg->degrees2);
+  printf("Magnetic Sign: %c\n", vtg->magnetic_sign);
+  printf("Speed Knots: %f\n", vtg->speed_knots);
+  printf("Knots: %c\n", vtg->knots);
+  printf("Speed km/h: %f\n", vtg->speed_kmh);
+  printf("km/h: %c\n", vtg->kmh);
+  printf("Checksum: %hx\n", vtg->checksum);
+}
+
+void print_gsa(const xxGSA_t *gsa) {
+  printf("Selection Mode: %c\n", gsa->sel_mode);
+  printf("Mode: %c\n", gsa->mode);
+  for (size_t i = 0; i < 12; i++) {
+    printf("Satellite ID: %hd\n", gsa->sat_id[i]);
+  }
+  printf("PDOP: %f\n", gsa->pdop);
+  printf("HDOP: %f\n", gsa->hdop);
+  printf("VDOP: %f\n", gsa->vdop);
+  printf("Checksum: %hx\n", gsa->checksum);
+}
+
+void print_gll(const xxGLL_t *gll) {
+  printf("Latitude: %f\n", gll->lat);
+  printf("Latitude Direction: %c\n", gll->lat_dir);
+  printf("Longitude: %f\n", gll->lon);
+  printf("Longitude Direction: %c\n", gll->lon_dir);
+  printf("UTC Time: %f\n", gll->utc_time);
+  printf("Status: %c\n", gll->status);
+  printf("Checksum: %hx\n", gll->checksum);
+}
+#endif
