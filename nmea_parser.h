@@ -114,6 +114,8 @@ typedef struct {
 
 typedef struct {
   char talker[3]; // Navigation system e.g. GPS - GP, GLONASS - GL, etc.
+  char begin_from[4]; // Start parsing from this NMEA sentence
+  unsigned int cycle; // cycle count
   xxRMC_t rmc;
   xxGGA_t gga;
   xxVTG_t vtg;
@@ -123,7 +125,7 @@ typedef struct {
 } navData_t;
 
 // do it right after creating the navData_t eg. nmea_set_talker(&navData, "GP");
-void nmea_init(navData_t *navData, const char *talker);
+void nmea_init(navData_t *navData, const char *talker, const char *begin_from);
 // parsing functions
 int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData);
 // clear the navData_t
@@ -136,7 +138,7 @@ void populate_vtg(const char *nmea, xxVTG_t *vtg);
 void clear_vtg(xxVTG_t *vtg);
 void populate_gsa(const char *nmea, xxGSA_t *gsa);
 void clear_gsa(xxGSA_t *gsa);
-void populate_gsv(char *nmea, xxGSV_t *gsv);
+unsigned int populate_gsv(char *nmea, xxGSV_t *gsv);
 void clear_gsv(xxGSV_t *gsv);
 void free_gsv_sat(xxGSV_t *gsv);
 void populate_gll(const char *nmea, xxGLL_t *gll);
