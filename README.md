@@ -36,8 +36,11 @@ include_directories(extern/nmea_parser)
 add_executable(${PROJECT_NAME} src/main.c extern/nmea_parser/nmea_parser.c)
 
 # Disabling some NMEA unused sentences will reduce precious memory and cpu cycles
+# NMEA_BUFFER_SIZE is the maximum length of the NMEA sentence - use redefinition with caution
 # Printing is disabled by default
-target_compile_definitions(${PROJECT_NAME} PRIVATE NMEA_GSV=0 NMEA_GSA=0 NMEA_GLL=0 NMEA_VTG=0 NMEA_PRINT=0)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+NMEA_GSV=0 NMEA_GSA=0 NMEA_GLL=0 NMEA_VTG=0 NMEA_PRINT=0 NMEA_BUFFER_SIZE=83
+)
 
 # Link the nmea_parser
 target_link_libraries(${PROJECT_NAME} nmea_parser)

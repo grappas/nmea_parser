@@ -3,7 +3,9 @@
 #ifndef NMEA_PARSER_H
 #define NMEA_PARSER_H
 
+#ifndef NMEA_BUFFER_SIZE
 #define NMEA_BUFFER_SIZE 256
+#endif
 
 #ifndef NMEA_RMC
 #define NMEA_RMC 1
