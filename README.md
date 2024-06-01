@@ -69,4 +69,4 @@ if (data.cycle == NMEA_OBJECT_SUM) {
 }
 ```
 Full example can be found here: https://github.com/grappas/json_parser_aviatech
-
+NMEA 0183 protocol: https://tronico.fi/OH6NT/docs/NMEA0183.pdf
