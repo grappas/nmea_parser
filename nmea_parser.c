@@ -1,8 +1,14 @@
-#include "nmea_parser.h"
-
+#ifdef __cplusplus
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
+
+#include "nmea_parser.h"
 
 void preprocess_nmea(nmeaBuffer_t *nmea) {
   char buffer[NMEA_BUFFER_SIZE];
