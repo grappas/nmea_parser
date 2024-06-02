@@ -52,19 +52,16 @@ Example usage:
 
 // define a data structure
 // every nullified pointer is ignored by the parser
-  xxGSV_t gsv;
-  xxVTG_t vtg;
-  xxGGA_t gga;
-  xxRMC_t rmc;
+xxGGA_t gga;
+xxRMC_t rmc;
 
-  navData_t data = {
-      .gsv = &gsv,
-      .vtg = NULL,
-      .gga = &gga,
-      .rmc = &rmc,
-      .gsa = NULL,
-      .gll = NULL,
-};
+// nullify the pointers
+nmea_nullify(&data);
+
+// assign the pointers to the data structure
+data.rmc = &rmc;
+data.gga = &gga;
+
 // create a buffer - it's important to have a fixed size buffer
 nmeaBuffer_t buffer;
 
