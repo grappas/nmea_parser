@@ -7,33 +7,6 @@
 #define NMEA_BUFFER_SIZE 256
 #endif
 
-#ifndef NMEA_RMC
-#define NMEA_RMC 1
-#endif
-
-#ifndef NMEA_GGA
-#define NMEA_GGA 1
-#endif
-
-#ifndef NMEA_VTG
-#define NMEA_VTG 1
-#endif
-
-#ifndef NMEA_GSA
-#define NMEA_GSA 1
-#endif
-
-#ifndef NMEA_GSV
-#define NMEA_GSV 1
-#endif
-
-#ifndef NMEA_GLL
-#define NMEA_GLL 1
-#endif
-
-#define NMEA_OBJECT_SUM                                                        \
-  (NMEA_RMC + NMEA_GGA + NMEA_VTG + NMEA_GSA + NMEA_GSV + NMEA_GLL)
-
 #endif // NMEA_PARSER_H
 typedef struct {
   char str[NMEA_BUFFER_SIZE];
@@ -149,25 +122,14 @@ typedef struct {
 typedef struct {
   char talker[3];     // Navigation system e.g. GPS - GP, GLONASS - GL, etc.
   char begin_from[4]; // Start parsing from this NMEA sentence
+  unsigned int cycles_max; // cycle count
   unsigned int cycle; // cycle count
-#if NMEA_RMC
-  xxRMC_t rmc;
-#endif
-#if NMEA_GGA
-  xxGGA_t gga;
-#endif
-#if NMEA_VTG
-  xxVTG_t vtg;
-#endif
-#if NMEA_GSA
-  xxGSA_t gsa;
-#endif
-#if NMEA_GSV
-  xxGSV_t gsv;
-#endif
-#if NMEA_GLL
-  xxGLL_t gll;
-#endif
+  xxRMC_t *rmc;
+  xxGGA_t *gga;
+  xxVTG_t *vtg;
+  xxGSA_t *gsa;
+  xxGSV_t *gsv;
+  xxGLL_t *gll;
 } navData_t;
 
 // do it right after creating the navData_t eg. nmea_set_talker(&navData, "GP");

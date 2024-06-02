@@ -48,10 +48,22 @@ void nmea_init(navData_t *navData, const char *talker, const char *begin_from) {
   strncpy(navData->talker, talker, sizeof(navData->talker));
   strncpy(navData->begin_from, begin_from, sizeof(navData->begin_from));
   navData->cycle = 0;
-#if NMEA_GSV
-  navData->gsv.sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
-  navData->gsv.checksum = (unsigned short *)malloc(sizeof(unsigned short));
-#endif
+  navData->cycles_max = 0;
+  if (navData->rmc)
+    navData->cycles_max++;
+  if (navData->gga)
+    navData->cycles_max++;
+  if (navData->vtg)
+    navData->cycles_max++;
+  if (navData->gsa)
+    navData->cycles_max++;
+  if (navData->gsv) {
+    navData->gsv->sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
+    navData->gsv->checksum = (unsigned short *)malloc(sizeof(unsigned short));
+    navData->cycles_max++;
+  }
+  if (navData->gll)
+    navData->cycles_max++;
 }
 
 void clear_rmc(xxRMC_t *rmc) { memset(rmc, 0, sizeof(xxRMC_t)); }
@@ -171,24 +183,18 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
 }
 
 void nmea_free(navData_t *navData) {
-#if NMEA_GSV
-  clear_gsv(&navData->gsv);
-#endif
-#if NMEA_RMC
-  clear_rmc(&navData->rmc);
-#endif
-#if NMEA_GGA
-  clear_gga(&navData->gga);
-#endif
-#if NMEA_VTG
-  clear_vtg(&navData->vtg);
-#endif
-#if NMEA_GSA
-  clear_gsa(&navData->gsa);
-#endif
-#if NMEA_GLL
-  clear_gll(&navData->gll);
-#endif
+  if (navData->gsv)
+    clear_gsv(navData->gsv);
+  if (navData->rmc)
+    clear_rmc(navData->rmc);
+  if (navData->gga)
+    clear_gga(navData->gga);
+  if (navData->vtg)
+    clear_vtg(navData->vtg);
+  if (navData->gsa)
+    clear_gsa(navData->gsa);
+  if (navData->gll)
+    clear_gll(navData->gll);
 }
 
 int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
@@ -198,40 +204,29 @@ int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
   if (strncmp(nmea->str + 1, navData->talker, 2)) {
     return 1;
   }
-  if ( (strncmp(nmea->str + 3, navData->begin_from, 3) == 0) || (navData->cycle == NMEA_OBJECT_SUM) ){
+  if ((strncmp(nmea->str + 3, navData->begin_from, 3) == 0) ||
+      (navData->cycle == navData->cycles_max)) {
     navData->cycle = 0;
   }
   preprocess_nmea(nmea);
   char *nmea_str = nmea->str;
-  if (strncmp(nmea_str + 3, "RMC", 3) == 0) {
-#if NMEA_RMC
-    populate_rmc(nmea_str, &navData->rmc);
+  if ((strncmp(nmea_str + 3, "RMC", 3) == 0) && (navData->rmc)) {
+    populate_rmc(nmea_str, navData->rmc);
     navData->cycle++;
-#endif
-  } else if (strncmp(nmea_str + 3, "GGA", 3) == 0) {
-#if NMEA_GGA
-    populate_gga(nmea_str, &navData->gga);
+  } else if ((strncmp(nmea_str + 3, "GGA", 3) == 0) && (navData->gga)) {
+    populate_gga(nmea_str, navData->gga);
     navData->cycle++;
-#endif
-  } else if (strncmp(nmea_str + 3, "VTG", 3) == 0) {
-#if NMEA_VTG
-    populate_vtg(nmea_str, &navData->vtg);
+  } else if ((strncmp(nmea_str + 3, "VTG", 3) == 0) && (navData->vtg)) {
+    populate_vtg(nmea_str, navData->vtg);
     navData->cycle++;
-#endif
-  } else if (strncmp(nmea_str + 3, "GSA", 3) == 0) {
-#if NMEA_GSA
-    populate_gsa(nmea_str, &navData->gsa);
+  } else if ((strncmp(nmea_str + 3, "GSA", 3) == 0) && (navData->gsa)) {
+    populate_gsa(nmea_str, navData->gsa);
     navData->cycle++;
-#endif
-  } else if (strncmp(nmea_str + 3, "GSV", 3) == 0) {
-#if NMEA_GSV
-    navData->cycle += populate_gsv(nmea_str, &navData->gsv);
-#endif
-  } else if (strncmp(nmea_str + 3, "GLL", 3) == 0) {
-#if NMEA_GLL
-    populate_gll(nmea_str, &navData->gll);
+  } else if ((strncmp(nmea_str + 3, "GSV", 3) == 0) && (navData->gsv)) {
+    navData->cycle += populate_gsv(nmea_str, &*navData->gsv);
+  } else if ((strncmp(nmea_str + 3, "GLL", 3) == 0) && (navData->gll)) {
+    populate_gll(nmea_str, navData->gll);
     navData->cycle++;
-#endif
   } else {
     return 1;
   }

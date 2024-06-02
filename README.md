@@ -35,11 +35,10 @@ include_directories(extern/nmea_parser)
 # Add the executable
 add_executable(${PROJECT_NAME} src/main.c extern/nmea_parser/nmea_parser.c)
 
-# Disabling some NMEA unused sentences will reduce precious memory and cpu cycles
 # NMEA_BUFFER_SIZE is the maximum length of the NMEA sentence - use redefinition with caution
 # Printing is disabled by default
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-NMEA_GSV=0 NMEA_GSA=0 NMEA_GLL=0 NMEA_VTG=0 NMEA_PRINT=0 NMEA_BUFFER_SIZE=83
+NMEA_PRINT=0 NMEA_BUFFER_SIZE=83
 )
 
 # Link the nmea_parser
@@ -52,7 +51,20 @@ Example usage:
 // $GPRMC,195413.00,A,4936.86732,N,01907.19394,E,0.117,,010624,,,A*74
 
 // define a data structure
-navData_t data;
+// every nullified pointer is ignored by the parser
+  xxGSV_t gsv;
+  xxVTG_t vtg;
+  xxGGA_t gga;
+  xxRMC_t rmc;
+
+  navData_t data = {
+      .gsv = &gsv,
+      .vtg = NULL,
+      .gga = &gga,
+      .rmc = &rmc,
+      .gsa = NULL,
+      .gll = NULL,
+};
 // create a buffer - it's important to have a fixed size buffer
 nmeaBuffer_t buffer;
 
@@ -67,7 +79,7 @@ nmea_init(&data, "GP", "RMC");
 int bytes_read = read(fd, buffer.str, sizeof(buffer.str));
 // parsing the sentence
 nmea_parse(&buffer, &data);
-if (data.cycle == NMEA_OBJECT_SUM) {
+if (data.cycle == data.cycles_max) {
     // do something with the data
 }
 ```
