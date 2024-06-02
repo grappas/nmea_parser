@@ -59,7 +59,7 @@ void nmea_init(navData_t *navData, const char *talker, const char *begin_from) {
     navData->cycles_max++;
   if (navData->gsv) {
     navData->gsv->sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
-    navData->gsv->checksum = (unsigned short *)malloc(sizeof(unsigned short));
+    navData->gsv->checksum = (unsigned char *)malloc(sizeof(unsigned short));
     navData->cycles_max++;
   }
   if (navData->gll)
@@ -88,34 +88,56 @@ void populate_rmc(const char *nmea, xxRMC_t *rmc) {
   clear_rmc(rmc);
   const char *data = nmea + 7;
 
-  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%f,%u,%f,%c*%hx", &rmc->time, &rmc->status,
-         &rmc->lat, &rmc->lat_dir, &rmc->lon, &rmc->lon_dir, &rmc->speed,
-         &rmc->course, &rmc->date, &rmc->mg_var, &rmc->mg_dir, &rmc->checksum);
+  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%f,%u,%f,%c,%c*%hhx", &rmc->time,
+         &rmc->status, &rmc->lat, &rmc->lat_dir, &rmc->lon, &rmc->lon_dir,
+         &rmc->speed, &rmc->course, &rmc->date, &rmc->mg_var, &rmc->mg_dir,
+         &rmc->checksum_mode, &rmc->checksum);
 }
 
-void populate_gga(const char *nmea, xxGGA_t *gga) {
+void populate_gga(char *nmea, xxGGA_t *gga) {
   clear_gga(gga);
-  const char *data = nmea + 7;
-  sscanf(data, "%f,%f,%c,%f,%c,%hu,%hu,%f,%f,%c,%f,%c,%f,%hu*%hx", &gga->time,
+  char *data = nmea + 7;
+  char *asterisk_position = strchr(data, '*');
+  int characters_read = 0;
+  sscanf(data, "%f,%f,%c,%f,%c,%hhu,%hhu,%f,%f,%c,%f,%c,%n", &gga->time,
          &gga->lat, &gga->lat_dir, &gga->lon, &gga->lon_dir, &gga->quality,
          &gga->sat_count, &gga->hdop, &gga->alt, &gga->unit_alt,
-         &gga->geoid_sep, &gga->unit_geoid_sep, &gga->age, &gga->rs_id,
-         &gga->checksum);
+         &gga->geoid_sep, &gga->unit_geoid_sep, &characters_read);
+  data += characters_read;
+
+  if (asterisk_position != NULL) {
+    // Save the value after the asterisk as a string
+    char value_str[3];
+    strncpy(value_str, asterisk_position + 1, 2);
+    value_str[2] = '\0';
+
+    // Convert the string value to unsigned short
+    gga->checksum = (unsigned short)strtoul(value_str, NULL, 16);
+
+    // Replace the asterisk and its value with a comma
+    *asterisk_position = ',';
+    *(asterisk_position + 1) = '\0';
+  }
+
+  if (strchr(data, ' ')) {
+    sscanf(data, "%f %hu,", &gga->age, &gga->rs_id);
+  }
 }
 
 void populate_vtg(const char *nmea, xxVTG_t *vtg) {
   clear_vtg(vtg);
   const char *data = nmea + 7;
-  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%c*%hx", &vtg->degrees, &vtg->state,
+  sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%c,%c*%hhx", &vtg->degrees, &vtg->state,
          &vtg->degrees2, &vtg->magnetic_sign, &vtg->speed_knots, &vtg->knots,
-         &vtg->speed_kmh, &vtg->kmh, &vtg->checksum);
+         &vtg->speed_kmh, &vtg->kmh, &vtg->mode, &vtg->checksum);
 }
 
 void populate_gsa(const char *nmea, xxGSA_t *gsa) {
   clear_gsa(gsa);
   const char *data = nmea + 7;
   sscanf(data,
-         "%c,%c,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%f,%f,%f*%hx",
+         "%c,%c,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%f,"
+         "%f,%f*%hhx",
          &gsa->sel_mode, &gsa->mode, &gsa->sat_id[0], &gsa->sat_id[1],
          &gsa->sat_id[2], &gsa->sat_id[3], &gsa->sat_id[4], &gsa->sat_id[5],
          &gsa->sat_id[6], &gsa->sat_id[7], &gsa->sat_id[8], &gsa->sat_id[9],
@@ -129,16 +151,16 @@ unsigned int populate_gsv(char *nmea, xxGSV_t *gsv) {
   char *data = nmea + 7;
   char *asterisk_position = strchr(data, '*');
 
-  sscanf(data, "%hd,%hd,%hd,%n", &gsv->mes_count, &gsv->mes_num,
+  sscanf(data, "%hhu,%hhu,%hhu,%n", &gsv->mes_count, &gsv->mes_num,
          &gsv->sat_count, &characters_read);
 
   if (gsv->mes_num == 1) {
     clear_gsv(gsv);
-    sscanf(data, "%hd,%hd,%hd,%n", &gsv->mes_count, &gsv->mes_num,
+    sscanf(data, "%hhu,%hhu,%hhu,%n", &gsv->mes_count, &gsv->mes_num,
            &gsv->sat_count, &characters_read);
     gsv->sat_info = (xxGSV_sat_t *)malloc(gsv->sat_count * sizeof(xxGSV_sat_t));
     gsv->checksum =
-        (unsigned short *)malloc(gsv->mes_count * sizeof(unsigned short));
+        (unsigned char *)malloc(gsv->mes_count * sizeof(unsigned short));
     if (!gsv->sat_info || !gsv->checksum) {
       fprintf(stderr, "Memory allocation failed\n");
       exit(EXIT_FAILURE);
@@ -163,7 +185,7 @@ unsigned int populate_gsv(char *nmea, xxGSV_t *gsv) {
 
   while ((data[0] != '\0') && (gsv->sat_iteriation < gsv->sat_count)) {
     xxGSV_sat_t *sat = &gsv->sat_info[gsv->sat_iteriation];
-    sscanf(data, "%hd,%hd,%hd,%hd,%n", &sat->sat_num, &sat->elevation,
+    sscanf(data, "%hhu,%hhu,%hu,%hhu,%n", &sat->sat_num, &sat->elevation,
            &sat->azimuth, &sat->snr, &characters_read);
     gsv->sat_iteriation++;
     data += characters_read;
@@ -178,8 +200,9 @@ unsigned int populate_gsv(char *nmea, xxGSV_t *gsv) {
 void populate_gll(const char *nmea, xxGLL_t *gll) {
   clear_gll(gll);
   const char *data = nmea + 7;
-  sscanf(data, "%f,%c,%f,%c,%f,%c*%hx", &gll->lat, &gll->lat_dir, &gll->lon,
-         &gll->lon_dir, &gll->utc_time, &gll->status, &gll->checksum);
+  sscanf(data, "%f,%c,%f,%c,%f,%c,%c*%hhx", &gll->lat, &gll->lat_dir, &gll->lon,
+         &gll->lon_dir, &gll->utc_time, &gll->status, &gll->checksum_mode,
+         &gll->checksum);
 }
 
 void nmea_free(navData_t *navData) {
@@ -196,6 +219,8 @@ void nmea_free(navData_t *navData) {
   if (navData->gll)
     clear_gll(navData->gll);
 }
+
+void nmea_nullify(navData_t *navData) { memset(navData, 0, sizeof(navData_t)); }
 
 int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
   if (strlen(nmea->str) == 0) {
@@ -249,7 +274,8 @@ void print_rmc(const navData_t *data) {
     printf("Date: %u\n", data->rmc->date);
     printf("Magnetic Variation: %f\n", data->rmc->mg_var);
     printf("Magnetic Direction: %c\n", data->rmc->mg_dir);
-    printf("Checksum: %hx\n", data->rmc->checksum);
+    printf("Checksum Mode: %c\n", data->rmc->checksum_mode);
+    printf("Checksum: %hhx\n", data->rmc->checksum);
   }
 }
 
@@ -261,16 +287,16 @@ void print_gga(const navData_t *data) {
     printf("Latitude Direction: %c\n", data->gga->lat_dir);
     printf("Longitude: %f\n", data->gga->lon);
     printf("Longitude Direction: %c\n", data->gga->lon_dir);
-    printf("Quality: %hu\n", data->gga->quality);
-    printf("Satellite Count: %hu\n", data->gga->sat_count);
+    printf("Quality: %hhu\n", data->gga->quality);
+    printf("Satellite Count: %hhu\n", data->gga->sat_count);
     printf("HDOP: %f\n", data->gga->hdop);
     printf("Altitude: %f\n", data->gga->alt);
     printf("Altitude Unit: %c\n", data->gga->unit_alt);
     printf("Geoid Separation: %f\n", data->gga->geoid_sep);
     printf("Geoid Separation Unit: %c\n", data->gga->unit_geoid_sep);
     printf("Age: %f\n", data->gga->age);
-    printf("RS ID: %hu\n", data->gga->rs_id);
-    printf("Checksum: %hx\n", data->gga->checksum);
+    printf("Reference Station ID: %hu\n", data->gga->rs_id);
+    printf("Checksum: %hhx\n", data->gga->checksum);
   }
 }
 
@@ -279,13 +305,13 @@ void print_vtg(const navData_t *data) {
     printf("VTG\n");
     printf("Degrees: %f\n", data->vtg->degrees);
     printf("State: %c\n", data->vtg->state);
-    printf("Degrees 2: %f\n", data->vtg->degrees2);
+    printf("Degrees2: %f\n", data->vtg->degrees2);
     printf("Magnetic Sign: %c\n", data->vtg->magnetic_sign);
     printf("Speed Knots: %f\n", data->vtg->speed_knots);
     printf("Knots: %c\n", data->vtg->knots);
-    printf("Speed km/h: %f\n", data->vtg->speed_kmh);
-    printf("km/h: %c\n", data->vtg->kmh);
-    printf("Checksum: %hx\n", data->vtg->checksum);
+    printf("Speed KMH: %f\n", data->vtg->speed_kmh);
+    printf("KMH: %c\n", data->vtg->kmh);
+    printf("Checksum: %hhx\n", data->vtg->checksum);
   }
 }
 
@@ -294,35 +320,32 @@ void print_gsa(const navData_t *data) {
     printf("GSA\n");
     printf("Selection Mode: %c\n", data->gsa->sel_mode);
     printf("Mode: %c\n", data->gsa->mode);
-    printf("Satellite ID: ");
     for (int i = 0; i < 12; i++) {
-      printf("%hd ", data->gsa->sat_id[i]);
+      printf("Satellite ID %d: %hhu\n", i, data->gsa->sat_id[i]);
     }
-    printf("\n");
     printf("PDOP: %f\n", data->gsa->pdop);
     printf("HDOP: %f\n", data->gsa->hdop);
     printf("VDOP: %f\n", data->gsa->vdop);
-    printf("Checksum: %hx\n", data->gsa->checksum);
+    printf("Checksum: %hhx\n", data->gsa->checksum);
   }
 }
 
 void print_gsv(const navData_t *data) {
   if (data->gsv) {
     printf("GSV\n");
-    printf("Message Count: %hd\n", data->gsv->mes_count);
-    printf("Message Number: %hd\n", data->gsv->mes_num);
-    printf("Satellite Count: %hd\n", data->gsv->sat_count);
+    printf("Message Count: %hhu\n", data->gsv->mes_count);
+    printf("Message Number: %hhu\n", data->gsv->mes_num);
+    printf("Satellite Count: %hhu\n", data->gsv->sat_count);
     for (int i = 0; i < data->gsv->sat_count; i++) {
-      printf("Satellite Number: %hd\n", data->gsv->sat_info[i].sat_num);
-      printf("Elevation: %hd\n", data->gsv->sat_info[i].elevation);
-      printf("Azimuth: %hd\n", data->gsv->sat_info[i].azimuth);
-      printf("SNR: %hd\n", data->gsv->sat_info[i].snr);
+      xxGSV_sat_t *sat = &data->gsv->sat_info[i];
+      printf("Satellite Number: %hhu\n", sat->sat_num);
+      printf("Elevation: %hhu\n", sat->elevation);
+      printf("Azimuth: %hu\n", sat->azimuth);
+      printf("SNR: %hhu\n", sat->snr);
     }
-    printf("Checksum: ");
     for (int i = 0; i < data->gsv->mes_count; i++) {
-      printf("%hx ", data->gsv->checksum[i]);
+      printf("Checksum %d: %hhx\n", i + 1, data->gsv->checksum[i]);
     }
-    printf("\n");
   }
 }
 
@@ -335,8 +358,37 @@ void print_gll(const navData_t *data) {
     printf("Longitude Direction: %c\n", data->gll->lon_dir);
     printf("UTC Time: %f\n", data->gll->utc_time);
     printf("Status: %c\n", data->gll->status);
-    printf("Checksum: %hx\n", data->gll->checksum);
+    printf("Checksum Mode: %c\n", data->gll->checksum_mode);
+    printf("Checksum: %hhx\n", data->gll->checksum);
   }
+}
+
+void print_nav(const navData_t *data) {
+  if (data->rmc) {
+    printf("###################################\n");
+    print_rmc(data);
+  }
+  if (data->gga) {
+    printf("###################################\n");
+    print_gga(data);
+  }
+  if (data->vtg) {
+    printf("###################################\n");
+    print_vtg(data);
+  }
+  if (data->gsa) {
+    printf("###################################\n");
+    print_gsa(data);
+  }
+  if (data->gsv) {
+    printf("###################################\n");
+    print_gsv(data);
+  }
+  if (data->gll) {
+    printf("###################################\n");
+    print_gll(data);
+  }
+  printf("###################################\n");
 }
 
 #endif
