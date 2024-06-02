@@ -72,7 +72,8 @@ nmeaBuffer_t buffer;
 // GP stands for GPS. It can be changed to GN for GLONASS, etc.
 // RMC stands for Recommended Minimum Specific GNSS Data. It can be changed to GGA, GLL, etc.
 // It zeroes the data.cycle variable, which is used to determine if the struct if fully populated in current cycle.
-// End of cycle is determined by the NMEA_OBJECT_SUM constant, which is the number of fields in the navData_t.
+// End of cycle is determined by the cycles_max variable, which is the number of fields in the navData_t.
+// defined by nmea_init function
 // to be defined by the user
 nmea_init(&data, "GP", "RMC");
 // example filling the buffer with a sentence
