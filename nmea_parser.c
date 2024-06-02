@@ -129,7 +129,7 @@ void populate_vtg(const char *nmea, xxVTG_t *vtg) {
   const char *data = nmea + 7;
   sscanf(data, "%f,%c,%f,%c,%f,%c,%f,%c,%c*%hhx", &vtg->degrees, &vtg->state,
          &vtg->degrees2, &vtg->magnetic_sign, &vtg->speed_knots, &vtg->knots,
-         &vtg->speed_kmh, &vtg->kmh, &vtg->mode, &vtg->checksum);
+         &vtg->speed_kmh, &vtg->kmh, &vtg->checksum_mode, &vtg->checksum);
 }
 
 void populate_gsa(const char *nmea, xxGSA_t *gsa) {
@@ -311,6 +311,7 @@ void print_vtg(const navData_t *data) {
     printf("Knots: %c\n", data->vtg->knots);
     printf("Speed KMH: %f\n", data->vtg->speed_kmh);
     printf("KMH: %c\n", data->vtg->kmh);
+    printf("Checksum Mode: %c\n", data->vtg->checksum_mode);
     printf("Checksum: %hhx\n", data->vtg->checksum);
   }
 }

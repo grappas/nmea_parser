@@ -68,7 +68,7 @@ typedef struct {
   char knots;             // 6) N = Knots
   float speed_kmh;        // 7) Speed Kilometers Per Hour
   char kmh;               // 8) K = Kilometres Per Hour
-  char mode;              // 	Mode indicator:
+  char checksum_mode;              // 	Mode indicator:
                           // A: Autonomous mode
                           // D: Differential mode
                           // E: Estimated (dead reckoning) mode
