@@ -153,10 +153,10 @@ void populate_gll(const char *nmea, xxGLL_t *gll);
 void clear_gll(xxGLL_t *gll);
 void preprocess_nmea(nmeaBuffer_t *nmea);
 #ifdef NMEA_PRINT
-void print_rmc(const xxRMC_t *rmc);
-void print_gga(const xxGGA_t *gga);
-void print_gsv(const xxGSV_t *gsv);
-void print_gsa(const xxGSA_t *gsa);
-void print_vtg(const xxVTG_t *vtg);
-void print_gll(const xxGLL_t *gll);
+void print_rmc(const navData_t *data);
+void print_gga(const navData_t *data);
+void print_gsv(const navData_t *data);
+void print_gsa(const navData_t *data);
+void print_vtg(const navData_t *data);
+void print_gll(const navData_t *data);
 #endif

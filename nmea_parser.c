@@ -234,88 +234,109 @@ int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
 }
 
 #ifdef NMEA_PRINT
-void print_rmc(const xxRMC_t *rmc) {
-  printf("Time: %f\n", rmc->time);
-  printf("Status: %c\n", rmc->status);
-  printf("Latitude: %f\n", rmc->lat);
-  printf("Latitude Direction: %c\n", rmc->lat_dir);
-  printf("Longitude: %f\n", rmc->lon);
-  printf("Longitude Direction: %c\n", rmc->lon_dir);
-  printf("Speed: %f\n", rmc->speed);
-  printf("Course: %f\n", rmc->course);
-  printf("Date: %u\n", rmc->date);
-  printf("Magnetic Variation: %f\n", rmc->mg_var);
-  printf("Magnetic Direction: %c\n", rmc->mg_dir);
-  printf("Checksum: %hx\n", rmc->checksum);
-}
 
-void print_gga(const xxGGA_t *gga) {
-  printf("Time: %f\n", gga->time);
-  printf("Latitude: %f\n", gga->lat);
-  printf("Latitude Direction: %c\n", gga->lat_dir);
-  printf("Longitude: %f\n", gga->lon);
-  printf("Longitude Direction: %c\n", gga->lon_dir);
-  printf("Quality: %hu\n", gga->quality);
-  printf("Satellite Count: %hu\n", gga->sat_count);
-  printf("HDOP: %f\n", gga->hdop);
-  printf("Altitude: %f\n", gga->alt);
-  printf("Unit Altitude: %c\n", gga->unit_alt);
-  printf("Geoidal Separation: %f\n", gga->geoid_sep);
-  printf("Unit Geoidal Separation: %c\n", gga->unit_geoid_sep);
-  printf("Age: %f\n", gga->age);
-  printf("Reference Station ID: %hu\n", gga->rs_id);
-  printf("Checksum: %hx\n", gga->checksum);
-}
-
-void print_gsv(const xxGSV_t *gsv) {
-  if (gsv->mes_count == gsv->mes_num) {
-    printf("Message Count: %hu\n", gsv->mes_count);
-    printf("Message Number: %hu\n", gsv->mes_num);
-    printf("Satellite Count: %hu\n", gsv->sat_count);
-    for (size_t i = 0; i < gsv->sat_count; i++) {
-      xxGSV_sat_t *sat = &gsv->sat_info[i];
-      printf("Satellite Number: %hu\n", sat->sat_num);
-      printf("Elevation: %hu\n", sat->elevation);
-      printf("Azimuth: %hu\n", sat->azimuth);
-      printf("SNR: %hu\n", sat->snr);
-    }
-    for (size_t i = 0; i < gsv->mes_count; i++) {
-      printf("Checksum: %hx\n", gsv->checksum[i]);
-    }
+void print_rmc(const navData_t *data) {
+  if (data->rmc) {
+    printf("RMC\n");
+    printf("Time: %f\n", data->rmc->time);
+    printf("Status: %c\n", data->rmc->status);
+    printf("Latitude: %f\n", data->rmc->lat);
+    printf("Latitude Direction: %c\n", data->rmc->lat_dir);
+    printf("Longitude: %f\n", data->rmc->lon);
+    printf("Longitude Direction: %c\n", data->rmc->lon_dir);
+    printf("Speed: %f\n", data->rmc->speed);
+    printf("Course: %f\n", data->rmc->course);
+    printf("Date: %u\n", data->rmc->date);
+    printf("Magnetic Variation: %f\n", data->rmc->mg_var);
+    printf("Magnetic Direction: %c\n", data->rmc->mg_dir);
+    printf("Checksum: %hx\n", data->rmc->checksum);
   }
 }
 
-void print_vtg(const xxVTG_t *vtg) {
-  printf("Degrees: %f\n", vtg->degrees);
-  printf("State: %c\n", vtg->state);
-  printf("Degrees 2: %f\n", vtg->degrees2);
-  printf("Magnetic Sign: %c\n", vtg->magnetic_sign);
-  printf("Speed Knots: %f\n", vtg->speed_knots);
-  printf("Knots: %c\n", vtg->knots);
-  printf("Speed km/h: %f\n", vtg->speed_kmh);
-  printf("km/h: %c\n", vtg->kmh);
-  printf("Checksum: %hx\n", vtg->checksum);
-}
-
-void print_gsa(const xxGSA_t *gsa) {
-  printf("Selection Mode: %c\n", gsa->sel_mode);
-  printf("Mode: %c\n", gsa->mode);
-  for (size_t i = 0; i < 12; i++) {
-    printf("Satellite ID: %hd\n", gsa->sat_id[i]);
+void print_gga(const navData_t *data) {
+  if (data->gga) {
+    printf("GGA\n");
+    printf("Time: %f\n", data->gga->time);
+    printf("Latitude: %f\n", data->gga->lat);
+    printf("Latitude Direction: %c\n", data->gga->lat_dir);
+    printf("Longitude: %f\n", data->gga->lon);
+    printf("Longitude Direction: %c\n", data->gga->lon_dir);
+    printf("Quality: %hu\n", data->gga->quality);
+    printf("Satellite Count: %hu\n", data->gga->sat_count);
+    printf("HDOP: %f\n", data->gga->hdop);
+    printf("Altitude: %f\n", data->gga->alt);
+    printf("Altitude Unit: %c\n", data->gga->unit_alt);
+    printf("Geoid Separation: %f\n", data->gga->geoid_sep);
+    printf("Geoid Separation Unit: %c\n", data->gga->unit_geoid_sep);
+    printf("Age: %f\n", data->gga->age);
+    printf("RS ID: %hu\n", data->gga->rs_id);
+    printf("Checksum: %hx\n", data->gga->checksum);
   }
-  printf("PDOP: %f\n", gsa->pdop);
-  printf("HDOP: %f\n", gsa->hdop);
-  printf("VDOP: %f\n", gsa->vdop);
-  printf("Checksum: %hx\n", gsa->checksum);
 }
 
-void print_gll(const xxGLL_t *gll) {
-  printf("Latitude: %f\n", gll->lat);
-  printf("Latitude Direction: %c\n", gll->lat_dir);
-  printf("Longitude: %f\n", gll->lon);
-  printf("Longitude Direction: %c\n", gll->lon_dir);
-  printf("UTC Time: %f\n", gll->utc_time);
-  printf("Status: %c\n", gll->status);
-  printf("Checksum: %hx\n", gll->checksum);
+void print_vtg(const navData_t *data) {
+  if (data->vtg) {
+    printf("VTG\n");
+    printf("Degrees: %f\n", data->vtg->degrees);
+    printf("State: %c\n", data->vtg->state);
+    printf("Degrees 2: %f\n", data->vtg->degrees2);
+    printf("Magnetic Sign: %c\n", data->vtg->magnetic_sign);
+    printf("Speed Knots: %f\n", data->vtg->speed_knots);
+    printf("Knots: %c\n", data->vtg->knots);
+    printf("Speed km/h: %f\n", data->vtg->speed_kmh);
+    printf("km/h: %c\n", data->vtg->kmh);
+    printf("Checksum: %hx\n", data->vtg->checksum);
+  }
 }
+
+void print_gsa(const navData_t *data) {
+  if (data->gsa) {
+    printf("GSA\n");
+    printf("Selection Mode: %c\n", data->gsa->sel_mode);
+    printf("Mode: %c\n", data->gsa->mode);
+    printf("Satellite ID: ");
+    for (int i = 0; i < 12; i++) {
+      printf("%hd ", data->gsa->sat_id[i]);
+    }
+    printf("\n");
+    printf("PDOP: %f\n", data->gsa->pdop);
+    printf("HDOP: %f\n", data->gsa->hdop);
+    printf("VDOP: %f\n", data->gsa->vdop);
+    printf("Checksum: %hx\n", data->gsa->checksum);
+  }
+}
+
+void print_gsv(const navData_t *data) {
+  if (data->gsv) {
+    printf("GSV\n");
+    printf("Message Count: %hd\n", data->gsv->mes_count);
+    printf("Message Number: %hd\n", data->gsv->mes_num);
+    printf("Satellite Count: %hd\n", data->gsv->sat_count);
+    for (int i = 0; i < data->gsv->sat_count; i++) {
+      printf("Satellite Number: %hd\n", data->gsv->sat_info[i].sat_num);
+      printf("Elevation: %hd\n", data->gsv->sat_info[i].elevation);
+      printf("Azimuth: %hd\n", data->gsv->sat_info[i].azimuth);
+      printf("SNR: %hd\n", data->gsv->sat_info[i].snr);
+    }
+    printf("Checksum: ");
+    for (int i = 0; i < data->gsv->mes_count; i++) {
+      printf("%hx ", data->gsv->checksum[i]);
+    }
+    printf("\n");
+  }
+}
+
+void print_gll(const navData_t *data) {
+  if (data->gll) {
+    printf("GLL\n");
+    printf("Latitude: %f\n", data->gll->lat);
+    printf("Latitude Direction: %c\n", data->gll->lat_dir);
+    printf("Longitude: %f\n", data->gll->lon);
+    printf("Longitude Direction: %c\n", data->gll->lon_dir);
+    printf("UTC Time: %f\n", data->gll->utc_time);
+    printf("Status: %c\n", data->gll->status);
+    printf("Checksum: %hx\n", data->gll->checksum);
+  }
+}
+
 #endif
