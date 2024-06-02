@@ -49,41 +49,36 @@ void nmea_init(navData_t *navData, const char *talker, const char *begin_from) {
   strncpy(navData->begin_from, begin_from, sizeof(navData->begin_from));
   navData->cycle = 0;
   navData->cycles_max = 0;
+#if NMEA_RMC_ENABLED
   if (navData->rmc)
     navData->cycles_max++;
+#endif
+#if NMEA_GGA_ENABLED
   if (navData->gga)
     navData->cycles_max++;
+#endif
+#if NMEA_VTG_ENABLED
   if (navData->vtg)
     navData->cycles_max++;
+#endif
+#if NMEA_GSA_ENABLED
   if (navData->gsa)
     navData->cycles_max++;
+#endif
+#if NMEA_GSV_ENABLED
   if (navData->gsv) {
     navData->gsv->sat_info = (xxGSV_sat_t *)malloc(sizeof(xxGSV_sat_t));
     navData->gsv->checksum = (unsigned char *)malloc(sizeof(unsigned short));
     navData->cycles_max++;
   }
+#endif
+#if NMEA_GLL_ENABLED
   if (navData->gll)
     navData->cycles_max++;
+#endif
 }
 
-void clear_rmc(xxRMC_t *rmc) { memset(rmc, 0, sizeof(xxRMC_t)); }
-void clear_gga(xxGGA_t *gga) { memset(gga, 0, sizeof(xxGGA_t)); }
-void clear_vtg(xxVTG_t *vtg) { memset(vtg, 0, sizeof(xxVTG_t)); }
-void clear_gsa(xxGSA_t *gsa) { memset(gsa, 0, sizeof(xxGSA_t)); }
-void clear_gll(xxGLL_t *gll) { memset(gll, 0, sizeof(xxGLL_t)); }
-void free_gsv_sat(xxGSV_t *gsv) {
-  if (gsv->sat_info) {
-    free(gsv->sat_info);
-    gsv->sat_info = NULL;
-    free(gsv->checksum);
-    gsv->checksum = NULL;
-  }
-}
-void clear_gsv(xxGSV_t *gsv) {
-  free_gsv_sat(gsv);
-  memset(gsv, 0, sizeof(xxGSV_t));
-}
-
+#if NMEA_RMC_ENABLED
 void populate_rmc(const char *nmea, xxRMC_t *rmc) {
   clear_rmc(rmc);
   const char *data = nmea + 7;
@@ -94,6 +89,10 @@ void populate_rmc(const char *nmea, xxRMC_t *rmc) {
          &rmc->checksum_mode, &rmc->checksum);
 }
 
+void clear_rmc(xxRMC_t *rmc) { memset(rmc, 0, sizeof(xxRMC_t)); }
+#endif
+
+#if NMEA_GGA_ENABLED
 void populate_gga(char *nmea, xxGGA_t *gga) {
   clear_gga(gga);
   char *data = nmea + 7;
@@ -124,6 +123,10 @@ void populate_gga(char *nmea, xxGGA_t *gga) {
   }
 }
 
+void clear_gga(xxGGA_t *gga) { memset(gga, 0, sizeof(xxGGA_t)); }
+#endif
+
+#if NMEA_VTG_ENABLED
 void populate_vtg(const char *nmea, xxVTG_t *vtg) {
   clear_vtg(vtg);
   const char *data = nmea + 7;
@@ -132,6 +135,10 @@ void populate_vtg(const char *nmea, xxVTG_t *vtg) {
          &vtg->speed_kmh, &vtg->kmh, &vtg->checksum_mode, &vtg->checksum);
 }
 
+void clear_vtg(xxVTG_t *vtg) { memset(vtg, 0, sizeof(xxVTG_t)); }
+#endif
+
+#if NMEA_GSA_ENABLED
 void populate_gsa(const char *nmea, xxGSA_t *gsa) {
   clear_gsa(gsa);
   const char *data = nmea + 7;
@@ -145,6 +152,10 @@ void populate_gsa(const char *nmea, xxGSA_t *gsa) {
          &gsa->checksum);
 }
 
+void clear_gsa(xxGSA_t *gsa) { memset(gsa, 0, sizeof(xxGSA_t)); }
+#endif
+
+#if NMEA_GSV_ENABLED
 unsigned int populate_gsv(char *nmea, xxGSV_t *gsv) {
 
   int characters_read = 0;
@@ -197,6 +208,21 @@ unsigned int populate_gsv(char *nmea, xxGSV_t *gsv) {
   }
 }
 
+void free_gsv_sat(xxGSV_t *gsv) {
+  if (gsv->sat_info) {
+    free(gsv->sat_info);
+    gsv->sat_info = NULL;
+    free(gsv->checksum);
+    gsv->checksum = NULL;
+  }
+}
+void clear_gsv(xxGSV_t *gsv) {
+  free_gsv_sat(gsv);
+  memset(gsv, 0, sizeof(xxGSV_t));
+}
+#endif
+
+#if NMEA_GLL_ENABLED
 void populate_gll(const char *nmea, xxGLL_t *gll) {
   clear_gll(gll);
   const char *data = nmea + 7;
@@ -205,19 +231,34 @@ void populate_gll(const char *nmea, xxGLL_t *gll) {
          &gll->checksum);
 }
 
+void clear_gll(xxGLL_t *gll) { memset(gll, 0, sizeof(xxGLL_t)); }
+#endif
+
 void nmea_free(navData_t *navData) {
+#if NMEA_GSV_ENABLED
   if (navData->gsv)
     clear_gsv(navData->gsv);
+#endif
+#if NMEA_RMC_ENABLED
   if (navData->rmc)
     clear_rmc(navData->rmc);
+#endif
+#if NMEA_GGA_ENABLED
   if (navData->gga)
     clear_gga(navData->gga);
+#endif
+#if NMEA_VTG_ENABLED
   if (navData->vtg)
     clear_vtg(navData->vtg);
+#endif
+#if NMEA_GSA_ENABLED
   if (navData->gsa)
     clear_gsa(navData->gsa);
+#endif
+#if NMEA_GLL_ENABLED
   if (navData->gll)
     clear_gll(navData->gll);
+#endif
 }
 
 void nmea_nullify(navData_t *navData) { memset(navData, 0, sizeof(navData_t)); }
@@ -235,31 +276,62 @@ int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData) {
   }
   preprocess_nmea(nmea);
   char *nmea_str = nmea->str;
-  if ((strncmp(nmea_str + 3, "RMC", 3) == 0) && (navData->rmc)) {
-    populate_rmc(nmea_str, navData->rmc);
-    navData->cycle++;
-  } else if ((strncmp(nmea_str + 3, "GGA", 3) == 0) && (navData->gga)) {
-    populate_gga(nmea_str, navData->gga);
-    navData->cycle++;
-  } else if ((strncmp(nmea_str + 3, "VTG", 3) == 0) && (navData->vtg)) {
-    populate_vtg(nmea_str, navData->vtg);
-    navData->cycle++;
-  } else if ((strncmp(nmea_str + 3, "GSA", 3) == 0) && (navData->gsa)) {
-    populate_gsa(nmea_str, navData->gsa);
-    navData->cycle++;
-  } else if ((strncmp(nmea_str + 3, "GSV", 3) == 0) && (navData->gsv)) {
-    navData->cycle += populate_gsv(nmea_str, &*navData->gsv);
-  } else if ((strncmp(nmea_str + 3, "GLL", 3) == 0) && (navData->gll)) {
-    populate_gll(nmea_str, navData->gll);
-    navData->cycle++;
-  } else {
+  if (strncmp(nmea_str + 3, "RMC", 3) == 0) {
+#if NMEA_RMC_ENABLED
+    if (navData->rmc) {
+      populate_rmc(nmea_str, navData->rmc);
+      navData->cycle++;
+    }
+#endif
+  }
+#if NMEA_GGA_ENABLED
+  else if (strncmp(nmea_str + 3, "GGA", 3) == 0) {
+    if (navData->gga) {
+      populate_gga(nmea_str, navData->gga);
+      navData->cycle++;
+    }
+  }
+#endif
+#if NMEA_VTG_ENABLED
+  else if (strncmp(nmea_str + 3, "VTG", 3) == 0) {
+    if (navData->vtg) {
+      populate_vtg(nmea_str, navData->vtg);
+      navData->cycle++;
+    }
+  }
+#endif
+#if NMEA_GSA_ENABLED
+  else if (strncmp(nmea_str + 3, "GSA", 3) == 0) {
+    if (navData->gsa) {
+      populate_gsa(nmea_str, navData->gsa);
+      navData->cycle++;
+    }
+  }
+#endif
+#if NMEA_GSV_ENABLED
+  else if (strncmp(nmea_str + 3, "GSV", 3) == 0) {
+    if (navData->gsv) {
+      navData->cycle += populate_gsv(nmea_str, &*navData->gsv);
+    }
+  }
+#endif
+#if NMEA_GLL_ENABLED
+  else if (strncmp(nmea_str + 3, "GLL", 3) == 0) {
+    if (navData->gll) {
+      populate_gll(nmea_str, navData->gll);
+      navData->cycle++;
+    }
+  }
+#endif
+  else {
     return 1;
   }
   return 0;
 }
 
-#ifdef NMEA_PRINT
+#if NMEA_PRINT
 
+#if NMEA_RMC_ENABLED
 void print_rmc(const navData_t *data) {
   if (data->rmc) {
     printf("RMC\n");
@@ -278,7 +350,9 @@ void print_rmc(const navData_t *data) {
     printf("Checksum: %hhx\n", data->rmc->checksum);
   }
 }
+#endif
 
+#if NMEA_GGA_ENABLED
 void print_gga(const navData_t *data) {
   if (data->gga) {
     printf("GGA\n");
@@ -299,7 +373,9 @@ void print_gga(const navData_t *data) {
     printf("Checksum: %hhx\n", data->gga->checksum);
   }
 }
+#endif
 
+#if NMEA_VTG_ENABLED
 void print_vtg(const navData_t *data) {
   if (data->vtg) {
     printf("VTG\n");
@@ -315,7 +391,9 @@ void print_vtg(const navData_t *data) {
     printf("Checksum: %hhx\n", data->vtg->checksum);
   }
 }
+#endif
 
+#if NMEA_GSA_ENABLED
 void print_gsa(const navData_t *data) {
   if (data->gsa) {
     printf("GSA\n");
@@ -330,7 +408,9 @@ void print_gsa(const navData_t *data) {
     printf("Checksum: %hhx\n", data->gsa->checksum);
   }
 }
+#endif
 
+#if NMEA_GSV_ENABLED
 void print_gsv(const navData_t *data) {
   if (data->gsv) {
     printf("GSV\n");
@@ -349,7 +429,9 @@ void print_gsv(const navData_t *data) {
     }
   }
 }
+#endif
 
+#if NMEA_GLL_ENABLED
 void print_gll(const navData_t *data) {
   if (data->gll) {
     printf("GLL\n");
@@ -363,32 +445,45 @@ void print_gll(const navData_t *data) {
     printf("Checksum: %hhx\n", data->gll->checksum);
   }
 }
+#endif
 
 void print_nav(const navData_t *data) {
+#if NMEA_RMC_ENABLED
   if (data->rmc) {
     printf("###################################\n");
     print_rmc(data);
   }
+#endif
+#if NMEA_GGA_ENABLED
   if (data->gga) {
     printf("###################################\n");
     print_gga(data);
   }
+#endif
+#if NMEA_VTG_ENABLED
   if (data->vtg) {
     printf("###################################\n");
     print_vtg(data);
   }
+#endif
+#if NMEA_GSA_ENABLED
   if (data->gsa) {
     printf("###################################\n");
     print_gsa(data);
   }
+#endif
+#if NMEA_GSV_ENABLED
   if (data->gsv) {
     printf("###################################\n");
     print_gsv(data);
   }
+#endif
+#if NMEA_GLL_ENABLED
   if (data->gll) {
     printf("###################################\n");
     print_gll(data);
   }
+#endif
   printf("###################################\n");
 }
 

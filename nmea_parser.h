@@ -3,6 +3,30 @@
 #ifndef NMEA_PARSER_H
 #define NMEA_PARSER_H
 
+#ifndef NMEA_RMC_ENABLED
+#define NMEA_RMC_ENABLED 1
+#endif
+
+#ifndef NMEA_GGA_ENABLED
+#define NMEA_GGA_ENABLED 1
+#endif
+
+#ifndef NMEA_VTG_ENABLED
+#define NMEA_VTG_ENABLED 1
+#endif
+
+#ifndef NMEA_GSA_ENABLED
+#define NMEA_GSA_ENABLED 1
+#endif
+
+#ifndef NMEA_GSV_ENABLED
+#define NMEA_GSV_ENABLED 1
+#endif
+
+#ifndef NMEA_GLL_ENABLED
+#define NMEA_GLL_ENABLED 1
+#endif
+
 #ifndef NMEA_BUFFER_SIZE
 #define NMEA_BUFFER_SIZE 256
 #endif
@@ -68,7 +92,7 @@ typedef struct {
   char knots;             // 6) N = Knots
   float speed_kmh;        // 7) Speed Kilometers Per Hour
   char kmh;               // 8) K = Kilometres Per Hour
-  char checksum_mode;              // 	Mode indicator:
+  char checksum_mode;     // 	Mode indicator:
                           // A: Autonomous mode
                           // D: Differential mode
                           // E: Estimated (dead reckoning) mode
@@ -133,12 +157,24 @@ typedef struct {
   char begin_from[4]; // Start parsing from this NMEA sentence
   unsigned char cycles_max; // cycle count
   unsigned char cycle;      // cycle count
+#if NMEA_RMC_ENABLED
   xxRMC_t *rmc;
+#endif
+#if NMEA_GGA_ENABLED
   xxGGA_t *gga;
+#endif
+#if NMEA_VTG_ENABLED
   xxVTG_t *vtg;
+#endif
+#if NMEA_GSA_ENABLED
   xxGSA_t *gsa;
+#endif
+#if NMEA_GSV_ENABLED
   xxGSV_t *gsv;
+#endif
+#if NMEA_GLL_ENABLED
   xxGLL_t *gll;
+#endif
 } navData_t;
 
 // do it right after creating the navData_t eg. nmea_set_talker(&navData, "GP");
@@ -148,26 +184,50 @@ int nmea_parse(nmeaBuffer_t *nmea, navData_t *navData);
 // clear the navData_t
 void nmea_free(navData_t *navData);
 void nmea_nullify(navData_t *navData);
+#if NMEA_RMC_ENABLED
 void populate_rmc(const char *nmea, xxRMC_t *rmc);
 void clear_rmc(xxRMC_t *rmc);
+#endif
+#if NMEA_GGA_ENABLED
 void populate_gga(char *nmea, xxGGA_t *gga);
 void clear_gga(xxGGA_t *gga);
+#endif
+#if NMEA_VTG_ENABLED
 void populate_vtg(const char *nmea, xxVTG_t *vtg);
 void clear_vtg(xxVTG_t *vtg);
+#endif
+#if NMEA_GSA_ENABLED
 void populate_gsa(const char *nmea, xxGSA_t *gsa);
 void clear_gsa(xxGSA_t *gsa);
+#endif
+#if NMEA_GSV_ENABLED
 unsigned int populate_gsv(char *nmea, xxGSV_t *gsv);
 void clear_gsv(xxGSV_t *gsv);
 void free_gsv_sat(xxGSV_t *gsv);
+#endif
+#if NMEA_GLL_ENABLED
 void populate_gll(const char *nmea, xxGLL_t *gll);
 void clear_gll(xxGLL_t *gll);
+#endif
 void preprocess_nmea(nmeaBuffer_t *nmea);
 #ifdef NMEA_PRINT
+#if NMEA_RMC_ENABLED
 void print_rmc(const navData_t *data);
+#endif
+#if NMEA_GGA_ENABLED
 void print_gga(const navData_t *data);
+#endif
+#if NMEA_VTG_ENABLED
 void print_gsv(const navData_t *data);
+#endif
+#if NMEA_GSA_ENABLED
 void print_gsa(const navData_t *data);
+#endif
+#if NMEA_GSV_ENABLED
 void print_vtg(const navData_t *data);
+#endif
+#if NMEA_GLL_ENABLED
 void print_gll(const navData_t *data);
+#endif
 void print_nav(const navData_t *data);
 #endif

@@ -37,8 +37,9 @@ add_executable(${PROJECT_NAME} src/main.c extern/nmea_parser/nmea_parser.c)
 
 # NMEA_BUFFER_SIZE is the maximum length of the NMEA sentence - use redefinition with caution
 # Printing is disabled by default
+# You can disable the sentences you don't need to save memory.
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-NMEA_PRINT=0 NMEA_BUFFER_SIZE=83
+NMEA_PRINT=0 NMEA_BUFFER_SIZE=83 NMEA_GSV_ENABLED=0 NMEA_VTG_ENABLED=0 NMEA_GLL_ENABLED=0 NMEA_GSA_ENABLED=0
 )
 
 # Link the nmea_parser
